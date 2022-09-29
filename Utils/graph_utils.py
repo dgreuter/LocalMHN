@@ -165,11 +165,8 @@ class LocalMHN(nn.Module):
             self.t_e = self.t_g.edata.pop('e').to(args.device).to(torch.float64)
         elif args.encoder_type == 'linear_fps':
             self.t_g = None
-            hidden_size = 1024
             self.template_encoder = nn.Sequential(
-            nn.Linear(args.fp_size, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, args.out_size),
+            nn.Linear(args.fp_size, args.out_size),
             nn.ReLU(),
             nn.LayerNorm(args.out_size)).to(args.device)
             self.templates = templates
