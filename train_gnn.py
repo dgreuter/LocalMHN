@@ -69,18 +69,21 @@ def parse_args():
                        help='''forces testset prediction,
                         overwrites raw_prediction.txt and 
                         decode_prediction.txt''')
-    parser.add_argument("-et", '--encoder_type', default='MPNN',
+    parser.add_argument("-et", '--encoder_type', default='linear_fps',
                         help='type of encoder in mhn, options: '
                             '"MPNN", "MPNN_wo_GRU", "Baseline" '
                             '"linear_fps"')
-    parser.add_argument("--hidden_size", default=128)
-    parser.add_argument("--out_size", default=64)#128
+    parser.add_argument("-ge", '--graph_encoder', default='concat',
+                        help='type of temp encoder in mhn, options: '
+                            '"reactant", "product", "concat"')
+    parser.add_argument("--hidden_size", default=32)
+    parser.add_argument("--out_size", default=32)#128
     parser.add_argument("--device", default=None)
-    parser.add_argument("--beta", default=0.1)
+    parser.add_argument("--beta", default=0.05)
     parser.add_argument("--lr", default=0.0001)
     parser.add_argument("--n_passing", default=6)
     parser.add_argument("--batch_size", default=32)
-    parser.add_argument("--n_epochs", default=100)
+    parser.add_argument("--n_epochs", default=1)
     parser.add_argument("--patience", default=3)
     parser.add_argument("--top_k", default = 50)
     parser.add_argument("--GPU", default = 2)
@@ -129,7 +132,7 @@ def collate_graphdata(batch):
 
 #copied and adapted from LocalRetro
 def collate_testdata(batch):
-    graphs,  labels, prod_smiles = zip(*batch)
+    graphs,  _ , prod_smiles = zip(*batch)
     bg = dgl.batch(graphs)
     bg.set_n_initializer(dgl.init.zero_initializer)
     bg.set_e_initializer(dgl.init.zero_initializer)

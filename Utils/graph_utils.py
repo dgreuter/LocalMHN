@@ -36,8 +36,8 @@ def load_local_data(args, input_col='Products', split_col='Split'):
     logger.debug(f'args: {vars(args)}')
     df = pd.read_csv(os.path.join(args.localdir, 'labeled_data.csv'))
     logger.debug(f'loaded labeled data with info, len {len(df)}')
-    df = df[df.Mask > 0]
-    logger.debug(f'removed entries with mask 0, new len {len(df)}')
+    df = df[(df['Split']=='test') | (df['Frequency']>0)]
+    df.reset_index(drop=True, inplace=True)
 
     # loading data as df
     X = df.loc[:, [input_col, split_col]]
@@ -78,26 +78,25 @@ def smiles2graphs(args, smiles, save_path, is_smarts=False):
 def temps2graphs(args, templates):
     '''
     input: templates as reaction smarts
-    output: list of temps (atom, bond) seperated by args.delimiter
-            each temp is tuple: (reactant_side, product_side)
+    output: list of temp graphs
     '''
     logger.info('creating template graphs')
-    reaction_side = ['product', 'reactant']
-    graphs = []
-    for j, side in enumerate(reaction_side):
-        temp_path = os.path.join(args.localdir, \
-                                 f'temp_graphs_{side}.bin')
-        if not os.path.exists(temp_path) or args.force_graphs:
+    temp_path = os.path.join(args.localdir, \
+                             f'temp_graphs_{args.graph_encoder}.bin')
+   
+    if not os.path.exists(temp_path) or args.force_graphs:
+        if args.graph_encoder in ['reactant', 'product']:
             smarts = [templates[key].split('>>')[j] for key in templates]
-            graphs.append(smiles2graphs(args, smarts, temp_path, is_smarts=True))
-        else:
-            logger.debug(f'graphs exist for {side} side, loading from {temp_path}')
-            gs, ld = load_graphs(temp_path)
-            graphs.append(gs)
-    product_graphs  = graphs[0]
-    reactant_graphs = graphs[1]
+        elif args.graph_encoder == 'concat':
+            smarts = [templates[key].replace('>>', '.') for key in templates]
+        graphs = smiles2graphs(args, smarts, temp_path, is_smarts=True)
+            
+    else:
+        logger.debug(f'graphs exist for {args.graph_encoder}, loading from {temp_path}')
+        graphs, ld = load_graphs(temp_path)
+    
     logger.info(f"done loading template graphs")
-    return product_graphs 
+    return graphs 
 
 
 def temps2fps(args, templates):
@@ -116,7 +115,6 @@ def temps2fps(args, templates):
     assert templates.shape[0] == len(np.unique(templates, axis=1))
     templates = torch.from_numpy(templates).to(args.device)
     logger.info(f"done creating template fingerprints")
-    logger.info(f'template dim: {templates.shape}')
     return templates
 
 
@@ -133,8 +131,11 @@ class GraphDataset:
         logger.info(f'creating {split} graph dataset')        
         self.ids = X.index[X['Split'] == split].values
         self.smiles = X[X['Split']==split]['Products'].values
-        labels = y.iloc[self.ids]['Labels']
-        self.labels= [eval(l) for l in labels]
+        if split != 'test':
+            labels = y.iloc[self.ids]['Labels']
+            self.labels = [eval(l) for l in labels]
+        else:
+            self.labels = np.zeros(len(self.ids))
         logger.info(f'loaded dset with len X:{len(self.smiles)} '
                         f'y:{len(self.labels)}')
 
@@ -151,7 +152,7 @@ class GraphDataset:
         return self.graphs[item], self.labels[item], self.smiles[item]
 
     def __len__(self):
-        return len(self.labels)
+        return len(self.ids)
         
 
 class LocalMHN(nn.Module):

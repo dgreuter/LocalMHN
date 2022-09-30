@@ -389,7 +389,6 @@ def make_simulate_output(args, split = 'test'):
                     labels.append(y)
             if len(labels) == 0:
                 lables = [(0, 0)]
-#             print (['%s\t%s' % (l, 1.0) for l in labels])
             string_labels = '\t'.join(['%s\t%s' % (l, 1.0) for l in labels])
             f.write('%s\t%s\t%s\t%s\n' % (i, df['Reactants'][i], df['Products'][i], string_labels))
     return 
@@ -409,8 +408,6 @@ def combine_preprocessed_data(train_pre, val_pre, test_pre, args):
     all_valid = all_valid.append(test_valid, ignore_index=True)
     all_valid['Mask'] = [int(f>=args['min_template_n']) for f in all_valid['Frequency']]
     logger.info(f'Valid data size: {len(all_valid)}')
-    all_valid = all_valid[all_valid['Mask']!=0]
-    logger.info(f'Valid data size after removing invalids: {len(all_valid)}')
     if args['reduced']:
         all_valid = reduce_dataset(all_valid)
     all_valid.to_csv('%s/labeled_data.csv' % args['output_dir'], index = None)
@@ -450,9 +447,7 @@ def change_out_path(args):
 
 def copy_templates(args):
     red_path = args['output_dir']
-    #  red_path  = os.path.join(base_path, 'reduced_set/')
     base_path = os.path.dirname(red_path)
-    #  red_path = os.path.abspath(red_path)
     logger.debug(f'red path {red_path}')
     shutil.copy(os.path.join(base_path, 'bond_templates.csv'), red_path)
     shutil.copy(os.path.join(base_path, 'atom_templates.csv'), red_path)
@@ -472,7 +467,7 @@ def parse_args():
                         help='Force to preprocess the dataset again')
     parser.add_argument('-m', '--max-edit-n', default=8,  
                         help='Maximum number of edit number')
-    parser.add_argument('-min', '--min-template-n', type=int, default=1,  
+    parser.add_argument('-min', '--min-template-n', type=int, default=0,  
                         help='Minimum of template frequency')
     parser.add_argument('--reduced', default=False, 
                         help='''uses first 200 samples and saves them to
